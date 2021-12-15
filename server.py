@@ -4,15 +4,13 @@ import os
 import io
 import socket
 import typing
+
 from threading import Thread
 from queue import Empty, Queue
 from request import Request
-from headers import Headers
 from response import Response
 
-HOST = "127.0.0.1"
-PORT = 9000
-SERVER_ROOT = os.path.abspath("www")
+SERVER_ROOT = "www"
 
 
 def serve_file(sock: socket.socket, path: str) -> None:
@@ -42,7 +40,6 @@ def serve_file(sock: socket.socket, path: str) -> None:
             response.headers.add("content-type", content_type)
             response.send(sock)
             return
-
     except FileNotFoundError:
         response = Response(status="404 Not Found", content="Not Found")
         response.send(sock)
@@ -64,7 +61,7 @@ class HTTPWorker(Thread):
         while self.running:
             try:
                 client_sock, client_addr = self.connection_queue.get(timeout=1)
-                print(f"New connection from {client_addr}.")
+                # print(f"New connection from {client_addr}.")
             except Empty:
                 continue
 
@@ -82,6 +79,7 @@ class HTTPWorker(Thread):
         with client_sock:
             try:
                 request = Request.from_socket(client_sock)
+                # print(request)
 
                 if "100-continue" in request.headers.get("expect", ""):
                     response = Response(status="100 Continue")
@@ -91,6 +89,7 @@ class HTTPWorker(Thread):
                     content_length = int(request.headers.get("content-length", "0"))
                 except ValueError:
                     content_length = 0
+
                 if content_length:
                     body = request.body.read(content_length)
                     print("Request body", body)
@@ -130,13 +129,13 @@ class HTTPServer:
             server_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 
             # This tells the socket what address to bind to.
-            server_sock.bind((HOST, PORT))
+            server_sock.bind((self.host, self.port))
 
             # 0 is the number of pending connections the socket may have before
             # new connections are refused.  Since this server is going to process
             # one connection at a time, we want to refuse any additional connections.
-            server_sock.listen(0)
-            print(f"Listening on {HOST}: {PORT}...")
+            server_sock.listen(self.worker_backlog)
+            print(f"Listening on {self.host}: {self.port}...")
 
             while True:
                 try:

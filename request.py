@@ -5,22 +5,21 @@ import typing
 from headers import Headers
 
 # https://stackoverflow.com/questions/12637768/python-3-send-method-of-generators
-def iter_lines(sock: socket.socket, bufsize: int = 16_384) -> typing.Generator[str, None, str]:
+def iter_lines(sock: socket.socket, bufsize: int = 16_384) -> typing.Generator[bytes, None, bytes]:
     """Given a socket, read all the individual CRLF-separated lines
     and yield each one until an empty one is found.  Returns the
     remainder after the empty line.
     """
-    buff = ""
+    buff = b""
     while True:
-        data = sock.recv(bufsize).decode('utf-8')
-        print("****", data, "******")
+        data = sock.recv(bufsize)
         if not data:
-            return ""
+            return b""
 
         buff += data
         while True:
             try:
-                i = buff.index("\r\n")
+                i = buff.index(b"\r\n")
                 line, buff = buff[:i], buff[i + 2:]
                 if not line:
                     return buff
@@ -31,7 +30,7 @@ def iter_lines(sock: socket.socket, bufsize: int = 16_384) -> typing.Generator[s
 
 
 class BodyReader(io.IOBase):
-    def __init__(self, sock: socket.socket, *, buff: str = "", bufsize: int = 16_384) -> None:
+    def __init__(self, sock: socket.socket, *, buff: bytes = b"", bufsize: int = 16_384) -> None:
         self._sock = sock
         self._buff = buff
         self._bufsize = bufsize
@@ -43,7 +42,7 @@ class BodyReader(io.IOBase):
         """Read up to n number of strs from the request body.
         """
         while len(self._buff) < n:
-            data = self._sock.recv(self._bufsize).decode('utf-8')
+            data = self._sock.recv(self._bufsize)
             if not data:
                 break
 
@@ -56,7 +55,7 @@ class BodyReader(io.IOBase):
 class Request(typing.NamedTuple):
     method: str
     path: str
-    headers: typing.Mapping[str, str]
+    headers: Headers
     body: BodyReader
 
     @classmethod
@@ -69,7 +68,7 @@ class Request(typing.NamedTuple):
         lines = iter_lines(sock)
 
         try:
-            request_line = next(lines)
+            request_line = next(lines).decode("ascii")
         except StopIteration:
             raise ValueError("Request line missing")
 
@@ -81,7 +80,7 @@ class Request(typing.NamedTuple):
             raise ValueError(f"Malformed request line {request_line!r}.")
 
         headers = Headers()
-        buff = ""
+        buff = b""
         while True:
             try:
                 line = next(lines)
@@ -90,7 +89,7 @@ class Request(typing.NamedTuple):
                 break
 
             try:
-                name, _, value = line.partition(":")
+                name, _, value = line.decode("ascii").partition(":")
                 headers.add(name, value.lstrip())
             except ValueError:
                 raise ValueError(f"Malformed header line {line!r}")
