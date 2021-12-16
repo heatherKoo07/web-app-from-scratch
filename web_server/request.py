@@ -4,6 +4,7 @@ import typing
 
 from headers import Headers
 
+
 # https://stackoverflow.com/questions/12637768/python-3-send-method-of-generators
 def iter_lines(sock: socket.socket, bufsize: int = 16_384) -> typing.Generator[bytes, None, bytes]:
     """Given a socket, read all the individual CRLF-separated lines
@@ -38,8 +39,8 @@ class BodyReader(io.IOBase):
     def readable(self) -> bool:
         return True
 
-    def read(self, n: int) -> str:
-        """Read up to n number of strs from the request body.
+    def read(self, n: int) -> bytes:
+        """Read up to n number of bytes from the request body.
         """
         while len(self._buff) < n:
             data = self._sock.recv(self._bufsize)

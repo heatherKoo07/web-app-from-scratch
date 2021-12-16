@@ -1,7 +1,8 @@
-import os
 import io
+import os
 import socket
 import typing
+
 from headers import Headers
 
 
@@ -17,8 +18,13 @@ class Response:
       encoding: An encoding for the content, if provided.
     """
 
-    def __init__(self, status: str, headers: typing.Optional[Headers] = None, body: typing.Optional[typing.IO]
-                 = None, content: typing.Optional[str] = None, encoding: str = "utf-8") -> None:
+    status: bytes
+    headers: Headers
+    body: typing.IO[bytes]
+
+    def __init__(
+            self, status: str, headers: typing.Optional[Headers] = None, body: typing.Optional
+            [typing.IO[bytes]] = None, content: typing.Optional[str] = None, encoding: str = "utf-8") -> None:
         self.status = status.encode()
         self.headers = headers or Headers()
 
@@ -32,7 +38,7 @@ class Response:
     def send(self, sock: socket.socket) -> None:
         """Write this response to a socket.
         """
-        content_length = self.headers.get("content-length")
+        content_length = self.headers.get_int("content-length")
         if content_length is None:
             try:
                 body_stat = os.fstat(self.body.fileno())
@@ -41,14 +47,14 @@ class Response:
                 self.body.seek(0, os.SEEK_END)
                 content_length = self.body.tell()
                 self.body.seek(0, os.SEEK_SET)
-            
+
             if content_length > 0:
-                self.headers.add("content-length", content_length)
-        
+                self.headers.add("content-length", str(content_length))
+
         headers = b"HTTP/1.1 " + self.status + b"\r\n"
         for header_name, header_value in self.headers:
             headers += f"{header_name}: {header_value}\r\n".encode()
 
         sock.sendall(headers + b"\r\n")
         if content_length > 0:
-            sock.sendfile(self.body)
+            sock.sendfile(self.body)  # type: ignore

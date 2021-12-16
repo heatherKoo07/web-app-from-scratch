@@ -2,18 +2,17 @@
 import logging
 import mimetypes
 import os
-import io
 import socket
-import typing
-
-from threading import Thread
 from queue import Empty, Queue
+from threading import Thread
+from typing import Callable, List, Tuple
+
 from request import Request
 from response import Response
 
 LOGGER = logging.getLogger(__name__)
 
-HandlerT = typing.Callable[[Request], Response]
+HandlerT = Callable[[Request], Response]
 
 
 def serve_static(server_root: str) -> HandlerT:
@@ -49,7 +48,7 @@ def serve_static(server_root: str) -> HandlerT:
 
 
 class HTTPWorker(Thread):
-    def __init__(self, connection_queue: Queue, handlers: typing.List[typing.Tuple[str, HandlerT]]) -> None:
+    def __init__(self, connection_queue: Queue, handlers: List[Tuple[str, HandlerT]]) -> None:
         super().__init__(daemon=True)
 
         self.connection_queue = connection_queue
@@ -78,7 +77,7 @@ class HTTPWorker(Thread):
                 self.connection_queue.task_done()
 
     def handle_client(self, client_sock: socket.socket,
-                      client_addr: typing.Tuple[str, int]) -> None:
+                      client_addr: Tuple[str, int]) -> None:
         with client_sock:
             try:
                 request = Request.from_socket(client_sock)
@@ -101,7 +100,7 @@ class HTTPWorker(Thread):
                         request = request._replace(path=request.path[len(path_prefix):])
                         response = handler(request)
                         response.send(client_sock)
-                    except Exception as e:
+                    except Exception:
                         LOGGER.exception("Unexpected error from handler %r.", handler)
                         response = Response(status="500 Internal Server Error",
                                             content="Internal Error")
@@ -119,8 +118,8 @@ class HTTPServer:
         self.port = port
         self.worker_count = worker_count
         self.worker_backlog = worker_count * 8
-        self.connection_queue = Queue(self.worker_backlog)
-        self.handlers = []
+        self.connection_queue: Queue = Queue(self.worker_backlog)
+        self.handlers: List[Tuple[str, HandlerT]] = []
 
     def mount(self, path_prefix: str, handler: HandlerT) -> None:
         """Mount a request handler at a particular path.  Handler
@@ -168,7 +167,7 @@ def app(request: Request) -> Response:
 
 
 def wrap_auth(handler: HandlerT) -> HandlerT:
-    """Middleware that ensures that 
+    """Middleware that ensures that
     all incoming requests have a valid Authorization header
     """
     def auth_handler(request: Request) -> Response:
