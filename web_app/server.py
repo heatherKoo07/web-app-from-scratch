@@ -7,8 +7,8 @@ from queue import Empty, Queue
 from threading import Thread
 from typing import Callable, List, Tuple
 
-from request import Request
-from response import Response
+from .request import Request
+from .response import Response
 
 LOGGER = logging.getLogger(__name__)
 
@@ -178,7 +178,7 @@ def wrap_auth(handler: HandlerT) -> HandlerT:
     return auth_handler
 
 
-server = HTTPServer()
-server.mount("/static", serve_static("www"))
-server.mount("", wrap_auth(app))
-server.serve_forever()
+# server = HTTPServer()
+# server.mount("/static", serve_static("www"))
+# server.mount("", wrap_auth(app))
+# server.serve_forever()

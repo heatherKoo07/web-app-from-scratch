@@ -2,7 +2,7 @@ import io
 import socket
 import typing
 
-from headers import Headers
+from .headers import Headers
 
 
 # https://stackoverflow.com/questions/12637768/python-3-send-method-of-generators
